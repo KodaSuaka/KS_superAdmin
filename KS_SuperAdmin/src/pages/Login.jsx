@@ -30,7 +30,7 @@ export default function Login() {
 
       // 3. Jika Laravel membalas sukses, biasanya ada "Token" yang dikirimkan.
       // Simpan token tersebut ke penyimpanan browser (Local Storage)
-      const token = response.data.access_token; // Sesuaikan dengan format JSON dari temanmu
+      const token = response.data.data.access_token; // Sesuaikan dengan format JSON dari temanmu
       localStorage.setItem('token_superadmin', token);
 
       // 4. Arahkan masuk ke Dashboard
