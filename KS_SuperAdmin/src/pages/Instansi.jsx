@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react';
+import api from '../services/api';
 
 export default function Instansi() {
   const [daftarInstansi, setDaftarInstansi] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [daftarPaketOption, setDaftarPaketOption] = useState([]);
 
-  // 1. STATE UNTUK MODAL & FORM
+  // STATE UNTUK MODAL & FORM
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isEditMode, setIsEditMode] = useState(false); // Penanda Edit atau Tambah
+  const [isEditMode, setIsEditMode] = useState(false);
   const [formData, setFormData] = useState({
     id: null,
     nama_instansi: '',
@@ -16,34 +18,25 @@ export default function Instansi() {
     owner_password: ''
   });
 
-  // Simulasi opsi paket untuk Dropdown
-  const daftarPaketOption = [
-    { id: 1, nama_paket: "Basic - Rp 150.000" },
-    { id: 2, nama_paket: "Pro Business - Rp 450.000" },
-    { id: 3, nama_paket: "Enterprise - Rp 5.000.000" }
-  ];
-
-  // Load Data Dummy Instansi
-  useEffect(() => {
-    setTimeout(() => {
-      setDaftarInstansi([
-        { 
-          id: "019f4be5-6bb7", 
-          nama_instansi: "PT Maju Terus Pantang Mundur", 
-          paket: { id: 2, nama_paket: "Pro Business" }, // id 2 sesuai paket di atas
-          outlets_count: 3,
-          users: [{ name: "Budi Santoso", email: "budi@majuterus.com" }]
-        },
-        { 
-          id: "019f4c17-75ab", 
-          nama_instansi: "Toko Sembako Berkah", 
-          paket: null,
-          outlets_count: 1,
-          users: [{ name: "Siti Aminah", email: "siti@berkah.com" }]
-        }
+  // Load data instansi & paket dari API
+  const loadData = async () => {
+    setIsLoading(true);
+    try {
+      const [resInstansi, resPaket] = await Promise.all([
+        api.get('/super-admin/instansis'),
+        api.get('/super-admin/pakets')
       ]);
+      setDaftarInstansi(resInstansi.data.data);
+      setDaftarPaketOption(resPaket.data.data);
+    } catch (error) {
+      console.error('Gagal memuat data:', error);
+    } finally {
       setIsLoading(false);
-    }, 800);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
   }, []);
 
   const handleInputChange = (e) => {
@@ -51,53 +44,70 @@ export default function Instansi() {
     setFormData({ ...formData, [name]: value });
   };
 
-  // FUNGSI BUKA MODAL TAMBAH
   const handleTambahBaru = () => {
     setIsEditMode(false);
     setFormData({ id: null, nama_instansi: '', paket_id: '', owner_name: '', owner_email: '', owner_password: '' });
     setIsModalOpen(true);
   };
 
-  // FUNGSI BUKA MODAL EDIT
   const handleEdit = (instansi) => {
     setIsEditMode(true);
     setFormData({
       id: instansi.id,
       nama_instansi: instansi.nama_instansi,
-      paket_id: instansi.paket ? instansi.paket.id : '', // Ambil ID paket jika ada
-      // Kosongkan data owner karena controller updateInstansi tidak menerima data ini
-      owner_name: '', 
-      owner_email: '', 
-      owner_password: '' 
+      paket_id: instansi.paket ? instansi.paket.id : '',
+      owner_name: '',
+      owner_email: '',
+      owner_password: ''
     });
     setIsModalOpen(true);
   };
 
-  // FUNGSI HAPUS
-  const handleHapus = (id) => {
-    // Sesuai controller: ini akan menghapus Instansi, Owner, dan Outlet sekaligus
-    if(window.confirm("Peringatan: Menghapus instansi akan menghapus SELURUH data Owner dan Outlet di dalamnya. Tetap lanjutkan?")) {
-      console.log("Hapus Instansi ID:", id);
-      alert("Simulasi Hapus Berhasil!");
+  const handleHapus = async (id) => {
+    if (!window.confirm('Peringatan: Menghapus instansi akan menghapus SELURUH data Owner dan Outlet di dalamnya. Tetap lanjutkan?')) {
+      return;
+    }
+    try {
+      await api.delete(`/super-admin/instansis/${id}`);
+      alert('Instansi berhasil dihapus!');
+      loadData();
+    } catch (error) {
+      const msg = error.response?.data?.message || 'Gagal menghapus instansi.';
+      alert(msg);
     }
   };
 
-  // FUNGSI SUBMIT FORM
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    if (isEditMode) {
-      console.log("Data UPDATE dikirim ke Laravel (PUT):", {
-        nama_instansi: formData.nama_instansi,
-        paket_id: formData.paket_id
-      });
-      alert("Simulasi UPDATE Instansi berhasil! Cek Console (F12)");
-    } else {
-      console.log("Data CREATE dikirim ke Laravel (POST):", formData);
-      alert("Simulasi CREATE Instansi & Owner berhasil! Cek Console (F12)");
+    try {
+      if (isEditMode) {
+        await api.put(`/super-admin/instansis/${formData.id}`, {
+          nama_instansi: formData.nama_instansi,
+          paket_id: formData.paket_id || null
+        });
+        alert('Instansi berhasil diperbarui!');
+      } else {
+        await api.post('/super-admin/instansis', {
+          nama_instansi: formData.nama_instansi,
+          paket_id: formData.paket_id || null,
+          owner_name: formData.owner_name,
+          owner_email: formData.owner_email,
+          owner_password: formData.owner_password,
+        });
+        alert('Instansi & Owner berhasil dibuat!');
+      }
+      setIsModalOpen(false);
+      loadData();
+    } catch (error) {
+      const msg = error.response?.data?.message || 'Gagal menyimpan data.';
+      const errors = error.response?.data?.errors;
+      if (errors) {
+        const detail = Object.values(errors).flat().join('\n');
+        alert(`${msg}\n\n${detail}`);
+      } else {
+        alert(msg);
+      }
     }
-    
-    setIsModalOpen(false);
   };
 
   return (
@@ -108,7 +118,7 @@ export default function Instansi() {
           <h2 className="text-2xl font-bold text-slate-800">Data Instansi</h2>
           <p className="text-slate-500 mt-1">Kelola perusahaan klien dan penetapan paket langganan.</p>
         </div>
-        <button 
+        <button
           onClick={handleTambahBaru}
           className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl shadow-sm shadow-blue-500/30 transition-all flex items-center gap-2"
         >
@@ -132,7 +142,7 @@ export default function Instansi() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {daftarInstansi.map((instansi) => (
+                {daftarInstansi.length > 0 ? daftarInstansi.map((instansi) => (
                   <tr key={instansi.id} className="hover:bg-slate-50 transition-colors">
                     <td className="px-6 py-4 font-bold text-slate-700">{instansi.nama_instansi}</td>
                     <td className="px-6 py-4">
@@ -147,17 +157,23 @@ export default function Instansi() {
                       )}
                     </td>
                     <td className="px-6 py-4">
-                      <p className="font-semibold text-slate-800">{instansi.users[0]?.name}</p>
-                      <p className="text-xs text-slate-500">{instansi.users[0]?.email}</p>
+                      {instansi.users && instansi.users.length > 0 ? (
+                        <>
+                          <p className="font-semibold text-slate-800">{instansi.users[0]?.name}</p>
+                          <p className="text-xs text-slate-500">{instansi.users[0]?.email}</p>
+                        </>
+                      ) : (
+                        <span className="text-slate-400 text-sm">Tidak ada owner</span>
+                      )}
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <button 
+                      <button
                         onClick={() => handleEdit(instansi)}
                         className="text-sm font-medium text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-md transition-colors mr-2"
                       >
                         Edit
                       </button>
-                      <button 
+                      <button
                         onClick={() => handleHapus(instansi.id)}
                         className="text-sm font-medium text-red-600 hover:text-red-800 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-md transition-colors"
                       >
@@ -165,7 +181,11 @@ export default function Instansi() {
                       </button>
                     </td>
                   </tr>
-                ))}
+                )) : (
+                  <tr>
+                    <td colSpan="4" className="px-6 py-8 text-center text-slate-400">Belum ada data instansi.</td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -173,12 +193,12 @@ export default function Instansi() {
       </div>
 
       {/* ========================================== */}
-      {/* AREA MODAL / POP-UP TAMBAH & EDIT INSTANSI */}
+      {/* MODAL TAMBAH & EDIT INSTANSI */}
       {/* ========================================== */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col animate-[fadeIn_0.2s_ease-out]">
-            
+
             <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 rounded-t-2xl">
               <h3 className="text-xl font-bold text-slate-800">
                 {isEditMode ? 'Edit Profil Instansi' : 'Registrasi Instansi & Owner Baru'}
@@ -188,8 +208,7 @@ export default function Instansi() {
 
             <div className="p-6 overflow-y-auto">
               <form id="formInstansi" onSubmit={handleSubmit} className="space-y-6">
-                
-                {/* Bagian Instansi */}
+
                 <div>
                   {!isEditMode && <h4 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-3">1. Data Perusahaan</h4>}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -202,14 +221,13 @@ export default function Instansi() {
                       <select name="paket_id" value={formData.paket_id} onChange={handleInputChange} className="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none bg-white">
                         <option value="">-- Tanpa Paket (NULL) --</option>
                         {daftarPaketOption.map(paket => (
-                          <option key={paket.id} value={paket.id}>{paket.nama_paket}</option>
+                          <option key={paket.id} value={paket.id}>{paket.nama_paket} - Rp {Number(paket.harga).toLocaleString('id-ID')}</option>
                         ))}
                       </select>
                     </div>
                   </div>
                 </div>
 
-                {/* Bagian Akun Owner (Hanya muncul jika mode Tambah Baru) */}
                 {!isEditMode && (
                   <>
                     <hr className="border-slate-100" />

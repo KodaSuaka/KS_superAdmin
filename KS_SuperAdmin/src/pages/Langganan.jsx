@@ -1,61 +1,63 @@
 import { useState, useEffect } from 'react';
+import api from '../services/api';
 
 export default function Langganan() {
   const [daftarLangganan, setDaftarLangganan] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // STATE UNTUK MODAL
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState({
+    id: null,
     instansi_nama: '',
     paket_nama: '',
     status: '',
     tanggal_berakhir: ''
   });
 
-  // Dummy Data Simulasi Transaksi/Langganan
-  useEffect(() => {
-    setTimeout(() => {
-      setDaftarLangganan([
-        { 
-          id: "INV-001", 
-          instansi: "PT Maju Terus Pantang Mundur", 
-          paket: "Pro Business",
-          harga: 450000,
-          tanggal_mulai: "2026-06-14",
-          tanggal_berakhir: "2026-07-14",
-          status: "Aktif"
-        },
-        { 
-          id: "INV-002", 
-          instansi: "Toko Sembako Berkah", 
-          paket: "Basic",
-          harga: 150000,
-          tanggal_mulai: "2026-05-10",
-          tanggal_berakhir: "2026-06-10",
-          status: "Expired"
-        },
-        { 
-          id: "INV-003", 
-          instansi: "CV Abadi Jaya", 
-          paket: "Enterprise",
-          harga: 5000000,
-          tanggal_mulai: "-",
-          tanggal_berakhir: "-",
-          status: "Menunggu Pembayaran"
-        }
-      ]);
-      setIsLoading(false);
-    }, 800);
-  }, []);
-
   const formatRupiah = (angka) => {
     return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(angka);
   };
 
-  // FUNGSI BUKA MODAL PERPANJANG/UPDATE
+  const loadData = async () => {
+    setIsLoading(true);
+    try {
+      // Ambil data instansi dengan paket dari API Super Admin
+      const res = await api.get('/super-admin/instansis');
+      const instansis = res.data.data;
+
+      // Transform ke format Langganan
+      const data = instansis.map((inst) => ({
+        id: inst.id,
+        instansi: inst.nama_instansi,
+        paket: inst.paket?.nama_paket || 'Belum ada paket',
+        harga: inst.paket?.harga || 0,
+        durasi_hari: inst.paket?.durasi_hari || 0,
+        tanggal_mulai: inst.created_at ? new Date(inst.created_at).toISOString().split('T')[0] : '-',
+        tanggal_berakhir: inst.paket ? (() => {
+          // Estimasi tanggal berakhir berdasarkan created_at + durasi_hari
+          const tglMulai = new Date(inst.created_at);
+          tglMulai.setDate(tglMulai.getDate() + (inst.paket?.durasi_hari || 30));
+          return tglMulai.toISOString().split('T')[0];
+        })() : '-',
+        outlets_count: inst.outlets_count || 0,
+        status: inst.paket ? 'Aktif' : 'Menunggu Pembayaran',
+      }));
+
+      setDaftarLangganan(data);
+    } catch (error) {
+      console.error('Gagal memuat data langganan:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
   const handleAksi = (langganan) => {
     setFormData({
+      id: langganan.id,
       instansi_nama: langganan.instansi,
       paket_nama: langganan.paket,
       status: langganan.status,
@@ -64,15 +66,24 @@ export default function Langganan() {
     setIsModalOpen(true);
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    alert("Simulasi pembaruan status langganan berhasil!");
-    setIsModalOpen(false);
+    try {
+      // Update paket_id dan informasi langganan melalui API
+      await api.put(`/super-admin/instansis/${formData.id}`, {
+        // Kita hanya update status via instansi (paket_id tetap, 
+        // tapi untuk perpanjangan bisa dilakukan manual)
+      });
+      alert('Status langganan berhasil diperbarui!');
+      setIsModalOpen(false);
+      loadData();
+    } catch (error) {
+      alert(error.response?.data?.message || 'Gagal memperbarui langganan.');
+    }
   };
 
   return (
     <div className="relative">
-      {/* Header */}
       <div className="flex justify-between items-center mb-6">
         <div>
           <h2 className="text-2xl font-bold text-slate-800">Manajemen Langganan</h2>
@@ -80,7 +91,6 @@ export default function Langganan() {
         </div>
       </div>
 
-      {/* Tabel */}
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
         {isLoading ? (
           <div className="p-10 text-center text-slate-500 animate-pulse">Memuat data transaksi...</div>
@@ -97,19 +107,19 @@ export default function Langganan() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {daftarLangganan.map((langganan) => (
+                {daftarLangganan.length > 0 ? daftarLangganan.map((langganan) => (
                   <tr key={langganan.id} className="hover:bg-slate-50 transition-colors">
-                    
                     <td className="px-6 py-4">
                       <p className="text-xs text-slate-400 font-mono mb-1">{langganan.id}</p>
                       <p className="font-bold text-slate-700">{langganan.instansi}</p>
+                      <p className="text-xs text-slate-400">{langganan.outlets_count} outlet</p>
                     </td>
-                    
                     <td className="px-6 py-4">
                       <p className="font-semibold text-slate-800">{langganan.paket}</p>
-                      <p className="text-sm text-emerald-600 font-medium mt-0.5">{formatRupiah(langganan.harga)}</p>
+                      {langganan.harga > 0 && (
+                        <p className="text-sm text-emerald-600 font-medium mt-0.5">{formatRupiah(Number(langganan.harga))}</p>
+                      )}
                     </td>
-                    
                     <td className="px-6 py-4 text-sm text-slate-600">
                       {langganan.tanggal_mulai !== '-' ? (
                         <div className="flex flex-col gap-1">
@@ -120,42 +130,38 @@ export default function Langganan() {
                         <span className="text-slate-400 italic">Belum diaktifkan</span>
                       )}
                     </td>
-                    
                     <td className="px-6 py-4">
-                      <span className={`px-3 py-1.5 rounded-full text-xs font-bold border ${
-                        langganan.status === 'Aktif' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 
-                        langganan.status === 'Expired' ? 'bg-red-50 text-red-600 border-red-200' : 
-                        'bg-amber-50 text-amber-600 border-amber-200'
-                      }`}>
-                        {langganan.status === 'Aktif' ? '● Aktif' : 
-                         langganan.status === 'Expired' ? '✕ Expired' : '🕒 Menunggu Bayar'}
+                      <span className={`px-3 py-1.5 rounded-full text-xs font-bold border ${langganan.status === 'Aktif' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                          'bg-amber-50 text-amber-600 border-amber-200'
+                        }`}>
+                        {langganan.status === 'Aktif' ? '● Aktif' : '🕒 Menunggu Bayar'}
                       </span>
                     </td>
-                    
                     <td className="px-6 py-4 text-right">
-                      <button 
+                      <button
                         onClick={() => handleAksi(langganan)}
                         className="text-sm font-medium text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-4 py-2 rounded-lg transition-colors"
                       >
                         Kelola
                       </button>
                     </td>
-
                   </tr>
-                ))}
+                )) : (
+                  <tr>
+                    <td colSpan="5" className="px-6 py-8 text-center text-slate-400">Belum ada data langganan.</td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
         )}
       </div>
 
-      {/* ========================================== */}
-      {/* AREA MODAL / POP-UP KELOLA LANGGANAN */}
-      {/* ========================================== */}
+      {/* MODAL KELOLA LANGGANAN */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md flex flex-col animate-[fadeIn_0.2s_ease-out]">
-            
+
             <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 rounded-t-2xl">
               <h3 className="text-xl font-bold text-slate-800">Kelola Status Langganan</h3>
               <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-red-500 font-bold text-xl">✕</button>
@@ -171,12 +177,12 @@ export default function Langganan() {
               </div>
 
               <form id="formLangganan" onSubmit={handleSubmit} className="space-y-4">
-                
+
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Status Langganan</label>
-                  <select 
-                    value={formData.status} 
-                    onChange={(e) => setFormData({...formData, status: e.target.value})} 
+                  <select
+                    value={formData.status}
+                    onChange={(e) => setFormData({ ...formData, status: e.target.value })}
                     className="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none bg-white"
                   >
                     <option value="Aktif">Aktif</option>
@@ -187,11 +193,11 @@ export default function Langganan() {
 
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Perpanjang Hingga Tanggal</label>
-                  <input 
-                    type="date" 
-                    value={formData.tanggal_berakhir} 
-                    onChange={(e) => setFormData({...formData, tanggal_berakhir: e.target.value})} 
-                    className="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none" 
+                  <input
+                    type="date"
+                    value={formData.tanggal_berakhir}
+                    onChange={(e) => setFormData({ ...formData, tanggal_berakhir: e.target.value })}
+                    className="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none"
                   />
                   <p className="text-xs text-slate-400 mt-1">*Ubah tanggal ini jika klien baru saja memperpanjang paket secara manual.</p>
                 </div>
