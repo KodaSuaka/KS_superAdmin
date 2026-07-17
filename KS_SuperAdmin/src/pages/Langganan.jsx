@@ -69,10 +69,10 @@ export default function Langganan() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      // Update paket_id dan informasi langganan melalui API
+      // Update status dan tanggal berakhir langganan
       await api.put(`/super-admin/instansis/${formData.id}`, {
-        // Kita hanya update status via instansi (paket_id tetap, 
-        // tapi untuk perpanjangan bisa dilakukan manual)
+        status_langganan: formData.status,
+        tanggal_berakhir: formData.tanggal_berakhir || null,
       });
       alert('Status langganan berhasil diperbarui!');
       setIsModalOpen(false);
@@ -132,7 +132,7 @@ export default function Langganan() {
                     </td>
                     <td className="px-6 py-4">
                       <span className={`px-3 py-1.5 rounded-full text-xs font-bold border ${langganan.status === 'Aktif' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
-                          'bg-amber-50 text-amber-600 border-amber-200'
+                        'bg-amber-50 text-amber-600 border-amber-200'
                         }`}>
                         {langganan.status === 'Aktif' ? '● Aktif' : '🕒 Menunggu Bayar'}
                       </span>

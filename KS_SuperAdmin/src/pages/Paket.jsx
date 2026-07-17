@@ -28,10 +28,17 @@ export default function Paket() {
     try {
       const res = await api.get('/super-admin/pakets');
       // Parsing fitur dari JSON string ke array untuk display
-      const pakets = res.data.data.map((p) => ({
-        ...p,
-        fiturArray: p.fitur ? JSON.parse(p.fitur) : []
-      }));
+      const pakets = res.data.data.map((p) => {
+        let fiturArray = [];
+        if (p.fitur) {
+          try {
+            fiturArray = Array.isArray(p.fitur) ? p.fitur : JSON.parse(p.fitur);
+          } catch {
+            fiturArray = typeof p.fitur === 'string' ? p.fitur.split('\n').filter(Boolean) : [];
+          }
+        }
+        return { ...p, fiturArray };
+      });
       setDaftarPaket(pakets);
     } catch (error) {
       console.error('Gagal memuat paket:', error);

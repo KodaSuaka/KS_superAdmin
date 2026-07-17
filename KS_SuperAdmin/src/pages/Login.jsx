@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import api from '../services/api';
+import { Link, useNavigate } from 'react-router-dom';
+import { loginSuperAdmin, saveAuthData } from '../services/authService';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -16,24 +16,22 @@ export default function Login() {
     setErrorMessage('');
 
     try {
-      // Panggil API login
-      const response = await api.post('/login', {
+      // Panggil service login
+      const data = await loginSuperAdmin({
         email: email,
         password: password
       });
 
-      const { data } = response.data; // { user, permissions, access_token, token_type }
-
       // VALIDASI: Pastikan role adalah "Super Admin"
-      if (data.user.role !== 'Super Admin') {
+      const userRole = data.user.role?.nama_role || data.user.role;
+      if (userRole !== 'Super Admin') {
         setErrorMessage('Akses ditolak! Hanya akun Super Admin yang bisa masuk ke panel ini.');
         setIsLoading(false);
         return;
       }
 
-      // Simpan token & data user ke localStorage
-      localStorage.setItem('token_superadmin', data.access_token);
-      localStorage.setItem('user_superadmin', JSON.stringify(data.user));
+      // Simpan token & data user via service
+      saveAuthData(data);
 
       // Arahkan ke Dashboard
       navigate('/');
@@ -103,6 +101,13 @@ export default function Login() {
               {isLoading ? 'Memeriksa Data...' : 'Masuk ke Dashboard'}
             </button>
           </form>
+
+          <div className="mt-6 text-center text-sm text-slate-500">
+            Belum punya akun?{' '}
+            <Link to="/register" className="text-blue-600 hover:text-blue-800 font-semibold">
+              Daftarkan instansi baru
+            </Link>
+          </div>
         </div>
 
       </div>
