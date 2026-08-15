@@ -85,6 +85,12 @@ export default function MainLayout() {
           <Link to="/langganan" onClick={tutupSidebar} className="block px-4 py-3 rounded-lg text-slate-300 hover:bg-slate-800 hover:text-white transition-all">
             💳 Langganan
           </Link>
+          <Link to="/invoice-paket" onClick={tutupSidebar} className="block px-4 py-3 rounded-lg text-slate-300 hover:bg-slate-800 hover:text-white transition-all">
+            🧾 Invoice Paket
+          </Link>
+          <Link to="/logging" onClick={tutupSidebar} className="block px-4 py-3 rounded-lg text-slate-300 hover:bg-slate-800 hover:text-white transition-all">
+            🗂️ Data Logging
+          </Link>
         </nav>
 
         {/* Tombol Logout di bawah */}

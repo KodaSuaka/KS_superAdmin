@@ -9,6 +9,8 @@ import Paket from './pages/Paket';
 import Instansi from './pages/Instansi';
 import Owner from './pages/Owner';
 import Langganan from './pages/Langganan';
+import DataLogging from './pages/DataLogging';
+import InvoicePaket from './pages/InvoicePaket';
 import Login from './pages/Login';
 import Register from './pages/Register';
 
@@ -28,6 +30,8 @@ export default function App() {
           <Route path="instansi" element={<Instansi />} />
           <Route path="owner" element={<Owner />} />
           <Route path="langganan" element={<Langganan />} />
+          <Route path="invoice-paket" element={<InvoicePaket />} />
+          <Route path="logging" element={<DataLogging />} />
         </Route>
 
       </Routes>
