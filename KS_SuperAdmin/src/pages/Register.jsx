@@ -6,6 +6,7 @@ export default function Register() {
   const navigate = useNavigate();
 
   const [formData, setFormData] = useState({
+    secret: '',
     name: '',
     email: '',
     password: '',
@@ -36,6 +37,7 @@ export default function Register() {
     try {
       // Panggil service register
       const data = await registerSuperAdmin({
+        secret: formData.secret,
         name: formData.name,
         email: formData.email,
         password: formData.password,
@@ -102,6 +104,21 @@ export default function Register() {
           )}
 
           <form onSubmit={handleRegister} className="space-y-5">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                Secret Key <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="password"
+                name="secret"
+                required
+                value={formData.secret}
+                onChange={handleInputChange}
+                placeholder="Kunci rahasia registrasi"
+                className="w-full px-4 py-3 rounded-lg bg-slate-50 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all text-slate-700"
+              />
+              <p className="text-xs text-slate-400 mt-1">Harus cocok dengan <code className="text-slate-500">SUPER_ADMIN_SECRET</code> di server.</p>
+            </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">
                 Nama Lengkap <span className="text-red-500">*</span>

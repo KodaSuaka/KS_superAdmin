@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import api from '../services/api';
 
 const STATUS_STYLE = {
@@ -22,7 +23,8 @@ export default function InvoicePaket() {
   const [instansiOptions, setInstansiOptions] = useState([]);
   const [paketOptions, setPaketOptions] = useState([]);
 
-  const [filter, setFilter] = useState({ instansi_id: '', status: '' });
+  const [searchParams] = useSearchParams();
+  const [filter, setFilter] = useState({ instansi_id: searchParams.get('instansi_id') || '', status: '' });
   const [page, setPage] = useState(1);
 
   // Modal terbitkan invoice baru

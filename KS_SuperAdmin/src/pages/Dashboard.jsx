@@ -19,7 +19,7 @@ export default function Dashboard() {
           { id: 1, judul: 'Total Instansi', nilai: dashData.total_instansi, ikon: '🏢', bgIcon: 'bg-blue-100', textColor: 'text-blue-600' },
           { id: 2, judul: 'Total Paket', nilai: dashData.total_paket, ikon: '📦', bgIcon: 'bg-emerald-100', textColor: 'text-emerald-600' },
           { id: 3, judul: 'Total Owner', nilai: dashData.total_owner, ikon: '👤', bgIcon: 'bg-amber-100', textColor: 'text-amber-600' },
-          { id: 4, judul: 'Total Karyawan', nilai: dashData.total_karyawan, ikon: '👥', bgIcon: 'bg-purple-100', textColor: 'text-purple-600' },
+          //{ id: 4, judul: 'Total Karyawan', nilai: dashData.total_karyawan, ikon: '👥', bgIcon: 'bg-purple-100', textColor: 'text-purple-600' },
         ]);
 
         setInstansiTerbaru(listInstansi.slice(0, 5).map((inst) => ({
