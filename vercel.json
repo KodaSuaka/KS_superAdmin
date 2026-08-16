@@ -1,0 +1,11 @@
+{
+    "installCommand": "cd KS_SuperAdmin && npm install",
+    "buildCommand": "cd KS_SuperAdmin && npm run build",
+    "outputDirectory": "KS_SuperAdmin/dist",
+    "rewrites": [
+        {
+            "source": "/(.*)",
+            "destination": "/index.html"
+        }
+    ]
+}

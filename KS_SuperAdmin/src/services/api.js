@@ -2,7 +2,10 @@ import axios from 'axios';
 
 // Buat instance Axios dengan base URL dari .env
 const api = axios.create({
-    baseURL: import.meta.env.VITE_API_BASE_URL,
+    // Fallback ke API produksi kalau VITE_API_BASE_URL belum ke-set saat build
+    // (mis. lupa set env var di Vercel). Tanpa ini request nyasar ke origin
+    // frontend sendiri → gejala: POST /login 405, dashboard TypeError.
+    baseURL: import.meta.env.VITE_API_BASE_URL || 'https://codasuaka.my.id/api',
     headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
