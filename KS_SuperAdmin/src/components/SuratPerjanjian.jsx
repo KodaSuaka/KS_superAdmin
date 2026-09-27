@@ -80,19 +80,23 @@ export default function SuratPerjanjian({ owner, tanggalCetak = new Date() }) {
   const profil = owner.profil_karyawan || {};
   const instansi = owner.instansi || {};
 
-  // Paket terdaftar milik owner ini (diisi halaman Owner dari transaksi_paket).
-  // Fallback ke instansi.paket untuk instansi lama yang belum punya transaksi.
-  const paket = owner.paket_aktif || instansi.paket || null;
+  // Paket milik owner. Halaman Owner sudah menyatukan sumbernya: paket yang
+  // melekat di instansi (paket_id), dilengkapi transaksi paket bila ada.
+  // owner.paket_aktif daher sudah memuat instansinya.paket; dipakai ulang di
+  // sini supaya surat dan tabel Owner tidak bisa berbeda isi.
+  const paket = owner.paket_aktif || owner.paket_instansi || instansi.paket || null;
 
   const namaPihakKedua = profil.nama_lengkap || owner.name || '';
   const alamat = profil.alamat || null;
   const kontak = profil.kontak || null;
   const npwp = profil.npwp || null;
 
-  // Masa Berlangganan memakai tanggal resmi dari transaksi paket (tanggal_mulai
-  // & tanggal_berakhir). Kalau transaksi tidak punya tanggal_berakhir, hitung
-  // dari tanggal_mulai + durasi paket. Tanpa tanggal sama sekali -> garis isian.
-  const mulai = paket?.tanggal_mulai || owner.created_at || null;
+  // Masa Berlangganan hanya dari tanggal transaksi paket (tanggal_mulai &
+  // tanggal_berakhir). created_at sengaja TIDAK dipakai: itu tanggal akun
+  // dibuat, bukan tanggal langganan, jadi memakainya berarti mengarang.
+  // Bila tanggal_berakhir kosong, hitung dari tanggal_mulai + durasi paket.
+  // Tanpa tanggal transaksi sama sekali -> garis isian untuk diisi manual.
+  const mulai = paket?.tanggal_mulai || null;
   const berakhir =
     paket?.tanggal_berakhir ||
     (paket?.durasi_hari && mulai ? tambahHari(mulai, paket.durasi_hari) : null);

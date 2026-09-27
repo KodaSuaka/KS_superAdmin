@@ -19,23 +19,45 @@ export default function Owner() {
     instansi_id: ''
   });
 
-  // Ambil riwayat langganan (transaksi_paket) supaya tiap owner tampil paket
-  // yang benar-benar terdaftar, bukan cuma paket terakhir yang menempel di
-  // instansi. Dipakai untuk kolom Paket & Masa Berlangganan + isi surat.
+  const formatTanggal = (tanggal) => {
+    if (!tanggal) return '-';
+    const d = new Date(tanggal);
+    if (Number.isNaN(d.getTime())) return tanggal;
+    return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+  };
+
   const formatRupiah = (angka) =>
     new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(angka || 0);
 
   const loadData = async () => {
     setIsLoading(true);
     try {
-      const [resOwner, resInstansi, resTrx] = await Promise.all([
+      // Paket milik instansi dan riwayat transaksi diambil terpisah: kalau satu
+      // endpoint gagal, data paket dari yang lain tetap bisa tampil (dulu
+      // Promise.all dipakai utuh sehingga satu kegagalan kosongkan semua tabel).
+      const [resOwner, resInstansi, resTrx] = await Promise.allSettled([
         api.get('/super-admin/owners'),
         api.get('/super-admin/instansis'),
         api.get('/super-admin/transaksi-pakets', { params: { per_page: 100 } })
       ]);
 
-      const owners = resOwner.data.data;
-      const transaksi = resTrx.data?.data || [];
+      if (resOwner.status !== 'fulfilled') throw resOwner.reason;
+      if (resInstansi.status !== 'fulfilled') throw resInstansi.reason;
+      if (resTrx.status === 'rejected') {
+        console.warn('Gagal memuat riwayat transaksi paket:', resTrx.reason);
+      }
+
+      const owners = resOwner.value.data.data;
+      const dataInstansi = resInstansi.value.data.data || [];
+      const transaksi = resTrx.status === 'fulfilled' ? resTrx.value.data?.data || [] : [];
+
+      // Paket milik tiap instansi. Endpoint /instansis sudah memuat
+      // instansi.paket, sedangkan /owners tidak (hanya 'instansi'),
+      // jadi diambil dari /instansis supaya paket owner bisa terisi.
+      const paketPerInstansi = new Map();
+      dataInstansi.forEach((ins) => {
+        if (ins.paket) paketPerInstansi.set(String(ins.id), ins.paket);
+      });
 
       // Kelompokkan transaksi per instansi, urut dari yang terbaru.
       const trxPerInstansi = new Map();
@@ -48,6 +70,7 @@ export default function Owner() {
       setDaftarOwner(
         owners.map((owner) => {
           const key = String(owner.instansi_id || owner.instansi?.id || '');
+          const paketInstansi = paketPerInstansi.get(key) || null;
           const riwayat = (trxPerInstansi.get(key) || []).map((trx) => ({
             id: trx.id,
             nama_paket: trx.paket?.nama_paket || '-',
@@ -61,21 +84,34 @@ export default function Owner() {
             status: trx.status || 'pending',
           }));
 
-          // Paket berlangganan = transaksi terakhir berstatus aktif.
-          const paketAktif =
-            riwayat.find((r) => r.status === 'aktif') ||
-            riwayat.find((r) => r.status === 'pending') ||
-            riwayat[0] ||
-            null;
+          // Sumber utama paket = milik instansi (paket_id yang melekat di
+          // instansi). Transaksi paket melengkapi: masa langganan, harga
+          // tercatat, dan status. Kalau instansi belum punya paket, pakai
+          // transaksi terakhir yang sudah aktif/dibayar.
+          const trxPaket = riwayat.find((r) => r.status === 'aktif') || null;
+          const paketDipakai = paketInstansi
+            ? {
+                ...paketInstansi,
+                // Harga & masa langganan tetap pakai angka transaksi bila ada.
+                harga: trxPaket?.harga ?? paketInstansi.harga,
+                tanggal_mulai: trxPaket?.tanggal_mulai ?? null,
+                tanggal_berakhir: trxPaket?.tanggal_berakhir ?? null,
+                status: trxPaket?.status ?? null,
+              }
+            : riwayat.find((r) => r.status === 'aktif') ||
+              riwayat.find((r) => r.status === 'pending') ||
+              riwayat[0] ||
+              null;
 
           return {
             ...owner,
             riwayat_langganan: riwayat,
-            paket_aktif: paketAktif,
+            paket_aktif: paketDipakai,
+            paket_instansi: paketInstansi,
           };
         })
       );
-      setDaftarInstansiOption(resInstansi.data.data);
+      setDaftarInstansiOption(dataInstansi);
     } catch (error) {
       console.error('Gagal memuat data owner:', error);
     } finally {
@@ -217,8 +253,13 @@ export default function Owner() {
                             {formatRupiah(Number(owner.paket_aktif.harga))}
                           </span>
                           <span className="text-xs text-slate-500">
-                            {owner.paket_aktif.tanggal_mulai || '-'} s/d{' '}
-                            {owner.paket_aktif.tanggal_berakhir || '-'}
+                            {owner.paket_aktif.tanggal_mulai
+                              ? `${formatTanggal(owner.paket_aktif.tanggal_mulai)} s/d ${
+                                  owner.paket_aktif.tanggal_berakhir
+                                    ? formatTanggal(owner.paket_aktif.tanggal_berakhir)
+                                    : 'berlangsung'
+                                }`
+                              : 'Masa langganan belum tercatat'}
                           </span>
                           <span
                             className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded border w-fit ${
@@ -229,7 +270,7 @@ export default function Owner() {
                                   : 'bg-slate-100 text-slate-600 border-slate-200'
                             }`}
                           >
-                            {owner.paket_aktif.status}
+                            {owner.paket_aktif.status || 'Tanpa Transaksi'}
                           </span>
                           {owner.riwayat_langganan.length > 1 && (
                             <span className="text-[10px] text-slate-400">
