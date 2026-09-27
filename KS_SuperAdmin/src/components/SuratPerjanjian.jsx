@@ -80,11 +80,31 @@ export default function SuratPerjanjian({ owner, tanggalCetak = new Date() }) {
   const profil = owner.profil_karyawan || {};
   const instansi = owner.instansi || {};
 
-  // Paket milik owner. Halaman Owner sudah menyatukan sumbernya: paket yang
-  // melekat di instansi (paket_id), dilengkapi transaksi paket bila ada.
-  // owner.paket_aktif daher sudah memuat instansinya.paket; dipakai ulang di
-  // sini supaya surat dan tabel Owner tidak bisa berbeda isi.
-  const paket = owner.paket_aktif || owner.paket_instansi || instansi.paket || null;
+  // Paket milik owner, digabung per-field dari tiga sumber:
+  //   1) owner.paket_aktif   -> paket dari invoice (transaksi_paket)
+  //   2) owner.paket_instansi -> paket yang melekat di instansi
+  //   3) instansi.paket       -> bentuk legacy, kalau owner dari /owners
+  // Fallback per-field (bukan per-objek) wajib: invoice sering punya tanggal
+  // tapi relasi paketnya tidak termuat, jadi objeknya ada tapi isinya null.
+  // Kalau fallback per-objek, field yang kosong tidak akan terisi.
+  const sumberPaket = [owner.paket_aktif, owner.paket_instansi, instansi.paket].filter(
+    (p) => p && typeof p === 'object'
+  );
+  const paket = sumberPaket.length
+    ? {
+        nama_paket: sumberPaket.map((p) => p.nama_paket).find(Boolean) || null,
+        harga: sumberPaket.map((p) => p.harga).find(Boolean) || null,
+        durasi_hari: sumberPaket.map((p) => p.durasi_hari).find((v) => v != null) ?? null,
+        max_outlet: sumberPaket.map((p) => p.max_outlet).find((v) => v != null) ?? null,
+        max_karyawan_per_outlet: sumberPaket
+          .map((p) => p.max_karyawan_per_outlet)
+          .find((v) => v != null) ?? null,
+        fitur: sumberPaket.map((p) => p.fitur).find((v) => v != null) ?? null,
+        tanggal_mulai: sumberPaket.map((p) => p.tanggal_mulai).find(Boolean) || null,
+        tanggal_berakhir: sumberPaket.map((p) => p.tanggal_berakhir).find(Boolean) || null,
+        status: sumberPaket.map((p) => p.status).find(Boolean) || null,
+      }
+    : null;
 
   const namaPihakKedua = profil.nama_lengkap || owner.name || '';
   const alamat = profil.alamat || null;
@@ -240,7 +260,7 @@ export default function SuratPerjanjian({ owner, tanggalCetak = new Date() }) {
                 {fitur.length > 0 ? fitur.join(', ') : <Isian lebar="w-32" />}
               </td>
               <td className="border border-slate-500 py-1 px-1.5">
-                {paket ? formatRupiah(Number(paket.harga ?? 0)) : <Isian lebar="w-24" />}
+                {paket?.harga ? formatRupiah(Number(paket.harga)) : <Isian lebar="w-24" />}
               </td>
               <td className="border border-slate-500 py-1 px-1.5">{paket?.durasi_hari || <Isian lebar="w-12" />}</td>
               <td className="border border-slate-500 py-1 px-1.5">{paket?.max_outlet || <Isian lebar="w-12" />}</td>

@@ -73,8 +73,10 @@ export default function Owner() {
           const paketInstansi = paketPerInstansi.get(key) || null;
           const riwayat = (trxPerInstansi.get(key) || []).map((trx) => ({
             id: trx.id,
-            nama_paket: trx.paket?.nama_paket || '-',
-            harga: trx.total_harga ?? trx.paket?.harga ?? 0,
+            // Paket pada invoice boleh null bila relasinya tidak ikut termuat;
+            // biarkan null supaya merge di bawah memakai nilai dari instansi.
+            nama_paket: trx.paket?.nama_paket || null,
+            harga: trx.total_harga || trx.paket?.harga || null,
             durasi_hari: trx.paket?.durasi_hari ?? null,
             max_outlet: trx.paket?.max_outlet ?? null,
             max_karyawan_per_outlet: trx.paket?.max_karyawan_per_outlet ?? null,
@@ -84,24 +86,28 @@ export default function Owner() {
             status: trx.status || 'pending',
           }));
 
-          // Sumber utama paket = milik instansi (paket_id yang melekat di
-          // instansi). Transaksi paket melengkapi: masa langganan, harga
-          // tercatat, dan status. Kalau instansi belum punya paket, pakai
-          // transaksi terakhir yang sudah aktif/dibayar.
-          const trxPaket = riwayat.find((r) => r.status === 'aktif') || null;
-          const paketDipakai = paketInstansi
+          // Sumber paket = invoice (transaksi_paket) milik instansi itu.
+          // Status invoice tidak jadi syarat: selama ada invoice, datanya dipakai
+          // (paket, fitur, harga, masa langganan) apa pun statusnya. Invoice
+          // terbaru yang dipilih.Paket yang melekat di instansi hanya dipakai
+          // kalau instansi belum punya invoice sama sekali.
+          const trxPaket = riwayat[0] || null;
+          const paketDipakai = trxPaket
             ? {
-                ...paketInstansi,
-                // Harga & masa langganan tetap pakai angka transaksi bila ada.
-                harga: trxPaket?.harga ?? paketInstansi.harga,
-                tanggal_mulai: trxPaket?.tanggal_mulai ?? null,
-                tanggal_berakhir: trxPaket?.tanggal_berakhir ?? null,
-                status: trxPaket?.status ?? null,
+                // Nilai dari invoice lebih spesifik; field yang null di invoice
+                // tetap memakai nilai paket instansi (atau sebaliknya).
+                nama_paket: trxPaket.nama_paket || paketInstansi?.nama_paket || null,
+                harga: trxPaket.harga || paketInstansi?.harga || null,
+                durasi_hari: trxPaket.durasi_hari ?? paketInstansi?.durasi_hari ?? null,
+                max_outlet: trxPaket.max_outlet ?? paketInstansi?.max_outlet ?? null,
+                max_karyawan_per_outlet:
+                  trxPaket.max_karyawan_per_outlet ?? paketInstansi?.max_karyawan_per_outlet ?? null,
+                fitur: trxPaket.fitur ?? paketInstansi?.fitur ?? null,
+                tanggal_mulai: trxPaket.tanggal_mulai,
+                tanggal_berakhir: trxPaket.tanggal_berakhir,
+                status: trxPaket.status,
               }
-            : riwayat.find((r) => r.status === 'aktif') ||
-              riwayat.find((r) => r.status === 'pending') ||
-              riwayat[0] ||
-              null;
+            : paketInstansi;
 
           return {
             ...owner,
@@ -247,10 +253,12 @@ export default function Owner() {
                       {owner.paket_aktif ? (
                         <div className="flex flex-col gap-1">
                           <span className="text-sm font-semibold text-slate-700">
-                            {owner.paket_aktif.nama_paket}
+                            {owner.paket_aktif.nama_paket || 'Paket tidak tercatat'}
                           </span>
                           <span className="text-xs text-emerald-600 font-medium">
-                            {formatRupiah(Number(owner.paket_aktif.harga))}
+                            {owner.paket_aktif.harga
+                              ? formatRupiah(Number(owner.paket_aktif.harga))
+                              : 'Harga belum tercatat'}
                           </span>
                           <span className="text-xs text-slate-500">
                             {owner.paket_aktif.tanggal_mulai
