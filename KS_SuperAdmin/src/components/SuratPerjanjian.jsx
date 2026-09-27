@@ -79,17 +79,23 @@ export default function SuratPerjanjian({ owner, tanggalCetak = new Date() }) {
 
   const profil = owner.profil_karyawan || {};
   const instansi = owner.instansi || {};
-  const paket = instansi.paket || null;
+
+  // Paket terdaftar milik owner ini (diisi halaman Owner dari transaksi_paket).
+  // Fallback ke instansi.paket untuk instansi lama yang belum punya transaksi.
+  const paket = owner.paket_aktif || instansi.paket || null;
 
   const namaPihakKedua = profil.nama_lengkap || owner.name || '';
   const alamat = profil.alamat || null;
   const kontak = profil.kontak || null;
   const npwp = profil.npwp || null;
 
-  // Masa Berlangganan dihitung dari paket + tanggal owner masuk sistem.
-  // Bila paket belum ada, field dikosongkan (Isian) supaya dicetak tangan.
-  const mulai = owner.created_at || null;
-  const berakhir = paket?.durasi_hari && mulai ? tambahHari(mulai, paket.durasi_hari) : null;
+  // Masa Berlangganan memakai tanggal resmi dari transaksi paket (tanggal_mulai
+  // & tanggal_berakhir). Kalau transaksi tidak punya tanggal_berakhir, hitung
+  // dari tanggal_mulai + durasi paket. Tanpa tanggal sama sekali -> garis isian.
+  const mulai = paket?.tanggal_mulai || owner.created_at || null;
+  const berakhir =
+    paket?.tanggal_berakhir ||
+    (paket?.durasi_hari && mulai ? tambahHari(mulai, paket.durasi_hari) : null);
 
   // Fitur paket disimpan backend sebagai JSON string; terima array, JSON, atau teks.
   const fitur = Array.isArray(paket?.fitur)
@@ -230,7 +236,7 @@ export default function SuratPerjanjian({ owner, tanggalCetak = new Date() }) {
                 {fitur.length > 0 ? fitur.join(', ') : <Isian lebar="w-32" />}
               </td>
               <td className="border border-slate-500 py-1 px-1.5">
-                {paket ? formatRupiah(Number(paket.harga)) : <Isian lebar="w-24" />}
+                {paket ? formatRupiah(Number(paket.harga ?? 0)) : <Isian lebar="w-24" />}
               </td>
               <td className="border border-slate-500 py-1 px-1.5">{paket?.durasi_hari || <Isian lebar="w-12" />}</td>
               <td className="border border-slate-500 py-1 px-1.5">{paket?.max_outlet || <Isian lebar="w-12" />}</td>

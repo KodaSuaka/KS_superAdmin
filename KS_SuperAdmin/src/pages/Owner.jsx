@@ -19,14 +19,62 @@ export default function Owner() {
     instansi_id: ''
   });
 
+  // Ambil riwayat langganan (transaksi_paket) supaya tiap owner tampil paket
+  // yang benar-benar terdaftar, bukan cuma paket terakhir yang menempel di
+  // instansi. Dipakai untuk kolom Paket & Masa Berlangganan + isi surat.
+  const formatRupiah = (angka) =>
+    new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(angka || 0);
+
   const loadData = async () => {
     setIsLoading(true);
     try {
-      const [resOwner, resInstansi] = await Promise.all([
+      const [resOwner, resInstansi, resTrx] = await Promise.all([
         api.get('/super-admin/owners'),
-        api.get('/super-admin/instansis')
+        api.get('/super-admin/instansis'),
+        api.get('/super-admin/transaksi-pakets', { params: { per_page: 100 } })
       ]);
-      setDaftarOwner(resOwner.data.data);
+
+      const owners = resOwner.data.data;
+      const transaksi = resTrx.data?.data || [];
+
+      // Kelompokkan transaksi per instansi, urut dari yang terbaru.
+      const trxPerInstansi = new Map();
+      transaksi.forEach((trx) => {
+        const key = String(trx.instansi_id || trx.instansi?.id);
+        if (!trxPerInstansi.has(key)) trxPerInstansi.set(key, []);
+        trxPerInstansi.get(key).push(trx);
+      });
+
+      setDaftarOwner(
+        owners.map((owner) => {
+          const key = String(owner.instansi_id || owner.instansi?.id || '');
+          const riwayat = (trxPerInstansi.get(key) || []).map((trx) => ({
+            id: trx.id,
+            nama_paket: trx.paket?.nama_paket || '-',
+            harga: trx.total_harga ?? trx.paket?.harga ?? 0,
+            durasi_hari: trx.paket?.durasi_hari ?? null,
+            max_outlet: trx.paket?.max_outlet ?? null,
+            max_karyawan_per_outlet: trx.paket?.max_karyawan_per_outlet ?? null,
+            fitur: trx.paket?.fitur ?? null,
+            tanggal_mulai: trx.tanggal_mulai || null,
+            tanggal_berakhir: trx.tanggal_berakhir || null,
+            status: trx.status || 'pending',
+          }));
+
+          // Paket berlangganan = transaksi terakhir berstatus aktif.
+          const paketAktif =
+            riwayat.find((r) => r.status === 'aktif') ||
+            riwayat.find((r) => r.status === 'pending') ||
+            riwayat[0] ||
+            null;
+
+          return {
+            ...owner,
+            riwayat_langganan: riwayat,
+            paket_aktif: paketAktif,
+          };
+        })
+      );
       setDaftarInstansiOption(resInstansi.data.data);
     } catch (error) {
       console.error('Gagal memuat data owner:', error);
@@ -135,6 +183,7 @@ export default function Owner() {
                   <th className="px-6 py-4 text-sm font-semibold text-slate-600">Nama Lengkap</th>
                   <th className="px-6 py-4 text-sm font-semibold text-slate-600">Email (Username)</th>
                   <th className="px-6 py-4 text-sm font-semibold text-slate-600">Milik Instansi</th>
+                  <th className="px-6 py-4 text-sm font-semibold text-slate-600">Paket Berlangganan</th>
                   <th className="px-6 py-4 text-sm font-semibold text-slate-600">Kontak</th>
                   <th className="px-6 py-4 text-sm font-semibold text-slate-600 text-right">Aksi</th>
                 </tr>
@@ -157,6 +206,42 @@ export default function Owner() {
                       <span className="text-sm font-semibold text-slate-700 bg-slate-100 px-3 py-1.5 rounded border border-slate-200">
                         🏢 {owner.instansi?.nama_instansi || 'Belum Diatur'}
                       </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      {owner.paket_aktif ? (
+                        <div className="flex flex-col gap-1">
+                          <span className="text-sm font-semibold text-slate-700">
+                            {owner.paket_aktif.nama_paket}
+                          </span>
+                          <span className="text-xs text-emerald-600 font-medium">
+                            {formatRupiah(Number(owner.paket_aktif.harga))}
+                          </span>
+                          <span className="text-xs text-slate-500">
+                            {owner.paket_aktif.tanggal_mulai || '-'} s/d{' '}
+                            {owner.paket_aktif.tanggal_berakhir || '-'}
+                          </span>
+                          <span
+                            className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded border w-fit ${
+                              owner.paket_aktif.status === 'aktif'
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                : owner.paket_aktif.status === 'pending'
+                                  ? 'bg-amber-50 text-amber-700 border-amber-200'
+                                  : 'bg-slate-100 text-slate-600 border-slate-200'
+                            }`}
+                          >
+                            {owner.paket_aktif.status}
+                          </span>
+                          {owner.riwayat_langganan.length > 1 && (
+                            <span className="text-[10px] text-slate-400">
+                              +{owner.riwayat_langganan.length - 1} riwayat
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="bg-slate-100 text-slate-500 border border-slate-200 px-3 py-1 rounded-md text-xs font-bold">
+                          Belum Ada Paket
+                        </span>
+                      )}
                     </td>
                     <td className="px-6 py-4 text-slate-500 text-sm">
                       {owner.profil_karyawan?.kontak || 'Belum diatur'}
@@ -185,7 +270,7 @@ export default function Owner() {
                   </tr>
                 )) : (
                   <tr>
-                    <td colSpan="5" className="px-6 py-8 text-center text-slate-400">Belum ada data owner.</td>
+                    <td colSpan="6" className="px-6 py-8 text-center text-slate-400">Belum ada data owner.</td>
                   </tr>
                 )}
               </tbody>
