@@ -31,7 +31,7 @@ export default function Owner() {
       const [resOwner, resInstansi, resTrx] = await Promise.allSettled([
         api.get('/super-admin/owners'),
         api.get('/super-admin/instansis'),
-        api.get('/super-admin/transaksi-pakets', { params: { per_page: 100 } })
+        api.get('/super-admin/transaksi-pakets', { params: { per_page: 200 } })
       ]);
 
       if (resOwner.status !== 'fulfilled') throw resOwner.reason;
@@ -44,9 +44,9 @@ export default function Owner() {
       const dataInstansi = resInstansi.value.data.data || [];
       const transaksi = resTrx.status === 'fulfilled' ? resTrx.value.data?.data || [] : [];
 
-      // Paket milik tiap instansi. Endpoint /instansis sudah memuat
-      // instansi.paket, sedangkan /owners tidak (hanya 'instansi'),
-      // jadi diambil dari /instansis supaya paket owner bisa terisi.
+      // Paket milik tiap instansi, dipetakan dari /instansis (cadangan).
+      // Sumber utamanya nanti owner.instansi.paket yang ikut dikirim backend;
+      // peta ini dipakai kalau relasi itu belum tersedia di respons /owners.
       const paketPerInstansi = new Map();
       dataInstansi.forEach((ins) => {
         if (ins.paket) paketPerInstansi.set(String(ins.id), ins.paket);
@@ -63,7 +63,8 @@ export default function Owner() {
       setDaftarOwner(
         owners.map((owner) => {
           const key = String(owner.instansi_id || owner.instansi?.id || '');
-          const paketInstansi = paketPerInstansi.get(key) || null;
+          // Prioritas: relasi paket yang ikut di payload owner, lalu peta /instansis.
+          const paketInstansi = owner.instansi?.paket || paketPerInstansi.get(key) || null;
           const riwayat = (trxPerInstansi.get(key) || []).map((trx) => ({
             id: trx.id,
             // Paket pada invoice boleh null bila relasinya tidak ikut termuat;
