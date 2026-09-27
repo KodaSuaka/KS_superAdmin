@@ -20,15 +20,6 @@ const PIHAK_PERTAMA = {
 const formatRupiah = (angka) =>
   new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(angka || 0);
 
-const tanggalPendek = (tanggal) =>
-  new Date(tanggal).toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' });
-
-const tambahHari = (tanggal, jumlahHari) => {
-  const hasil = new Date(tanggal);
-  hasil.setDate(hasil.getDate() + Number(jumlahHari || 0));
-  return hasil;
-};
-
 /** Garis titik-titik untuk data yang belum ada di sistem / diisi tangan. */
 function Isian({ lebar = 'w-40' }) {
   return (
@@ -111,15 +102,10 @@ export default function SuratPerjanjian({ owner, tanggalCetak = new Date() }) {
   const kontak = profil.kontak || null;
   const npwp = profil.npwp || null;
 
-  // Masa Berlangganan hanya dari tanggal transaksi paket (tanggal_mulai &
-  // tanggal_berakhir). created_at sengaja TIDAK dipakai: itu tanggal akun
-  // dibuat, bukan tanggal langganan, jadi memakainya berarti mengarang.
-  // Bila tanggal_berakhir kosong, hitung dari tanggal_mulai + durasi paket.
-  // Tanpa tanggal transaksi sama sekali -> garis isian untuk diisi manual.
-  const mulai = paket?.tanggal_mulai || null;
-  const berakhir =
-    paket?.tanggal_berakhir ||
-    (paket?.durasi_hari && mulai ? tambahHari(mulai, paket.durasi_hari) : null);
+  // Masa Berlangganan SENGAJA dikosongkan: tanggal transaksi paket sering
+  // tidak sinkron dengan kontrak di lapangan, jadi biarkan diisi
+  // tangan dari tanggal di Pasal 3 (Isian) daripada menampilkan angka yang
+  // bisa salah. Durasi paket (durasi_hari) tetap tampil di Pasal 3.
 
   // Fitur paket disimpan backend sebagai JSON string; terima array, JSON, atau teks.
   const fitur = Array.isArray(paket?.fitur)
@@ -287,9 +273,8 @@ export default function SuratPerjanjian({ owner, tanggalCetak = new Date() }) {
       {/* PASAL 4 */}
       <Pasal nomor={4} judul="JANGKA WAKTU">
         <Paragraf>
-          Masa Berlangganan berlaku sejak tanggal <b>{mulai ? tanggalPendek(mulai) : <Isian lebar="w-24" />}</b> sampai
-          dengan tanggal <b>{berakhir ? tanggalPendek(berakhir) : <Isian lebar="w-24" />}</b>, sesuai dengan durasi
-          Paket Berlangganan yang dipilih sebagaimana diatur dalam Pasal 3.
+          Masa Berlangganan berlaku sejak tanggal <Isian lebar="w-24" /> sampai dengan tanggal <Isian lebar="w-24" />
+          , sesuai dengan durasi Paket Berlangganan yang dipilih sebagaimana diatur dalam Pasal 3.
         </Paragraf>
         <Paragraf>
           Perjanjian ini dapat diperpanjang untuk periode berikutnya berdasarkan persetujuan tertulis (termasuk melalui

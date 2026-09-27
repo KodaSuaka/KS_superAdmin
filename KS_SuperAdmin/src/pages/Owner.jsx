@@ -19,13 +19,6 @@ export default function Owner() {
     instansi_id: ''
   });
 
-  const formatTanggal = (tanggal) => {
-    if (!tanggal) return '-';
-    const d = new Date(tanggal);
-    if (Number.isNaN(d.getTime())) return tanggal;
-    return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
-  };
-
   const formatRupiah = (angka) =>
     new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(angka || 0);
 
@@ -259,15 +252,6 @@ export default function Owner() {
                             {owner.paket_aktif.harga
                               ? formatRupiah(Number(owner.paket_aktif.harga))
                               : 'Harga belum tercatat'}
-                          </span>
-                          <span className="text-xs text-slate-500">
-                            {owner.paket_aktif.tanggal_mulai
-                              ? `${formatTanggal(owner.paket_aktif.tanggal_mulai)} s/d ${
-                                  owner.paket_aktif.tanggal_berakhir
-                                    ? formatTanggal(owner.paket_aktif.tanggal_berakhir)
-                                    : 'berlangsung'
-                                }`
-                              : 'Masa langganan belum tercatat'}
                           </span>
                           <span
                             className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded border w-fit ${
