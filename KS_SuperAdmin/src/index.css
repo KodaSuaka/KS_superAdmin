@@ -1,1 +1,49 @@
 @import "tailwindcss";
+
+/* ==========================================
+   CETAK SURAT PERJANJIAN
+   Saat window.print() dipanggil, hanya blok .cetak-surat yang tampil;
+   seluruh isi halaman lain disembunyikan supaya yang keluar hanya surat.
+   ========================================== */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 0;
+  }
+
+  html,
+  body {
+    background: #fff !important;
+  }
+
+  body * {
+    visibility: hidden !important;
+  }
+
+  .cetak-surat,
+  .cetak-surat * {
+    visibility: visible !important;
+  }
+
+  .cetak-surat {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    box-shadow: none !important;
+  }
+
+  /* Cegah paragraf / pasal jadi yatim di antar halaman. */
+  .cetak-surat p,
+  .cetak-surat section,
+  .cetak-surat header {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .cetak-surat h3 {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+}

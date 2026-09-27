@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../services/api';
+import CetakPerjanjian from '../components/CetakPerjanjian';
 
 export default function Owner() {
   const [daftarOwner, setDaftarOwner] = useState([]);
@@ -8,6 +9,8 @@ export default function Owner() {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
+  // Owner yang sedang dipratinjau untuk dicetak suratnya (null = jendela ditutup)
+  const [ownerCetak, setOwnerCetak] = useState(null);
   const [formData, setFormData] = useState({
     id: null,
     name: '',
@@ -158,7 +161,14 @@ export default function Owner() {
                     <td className="px-6 py-4 text-slate-500 text-sm">
                       {owner.profil_karyawan?.kontak || 'Belum diatur'}
                     </td>
-                    <td className="px-6 py-4 text-right">
+                    <td className="px-6 py-4 text-right whitespace-nowrap">
+                      <button
+                        onClick={() => setOwnerCetak(owner)}
+                        title="Cetak surat perjanjian"
+                        className="text-sm font-medium text-emerald-700 hover:text-emerald-900 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-md transition-colors mr-2"
+                      >
+                        🖨 Cetak
+                      </button>
                       <button
                         onClick={() => handleEdit(owner)}
                         className="text-sm font-medium text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-md transition-colors mr-2"
@@ -249,6 +259,11 @@ export default function Owner() {
 
           </div>
         </div>
+      )}
+
+      {/* JENDELA CETAK SURAT PERJANJIAN */}
+      {ownerCetak && (
+        <CetakPerjanjian owner={ownerCetak} onClose={() => setOwnerCetak(null)} />
       )}
 
     </div>
