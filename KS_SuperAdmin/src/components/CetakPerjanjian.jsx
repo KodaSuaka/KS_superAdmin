@@ -6,7 +6,7 @@ import SuratPerjanjian from '../components/SuratPerjanjian';
  * Menampilkan preview di modal (desktop) / overlay penuh (mobile), lalu
  * memanggil window.print() yang hanya mencetak blok .cetak-surat.
  */
-export default function CetakPerjanjian({ owner, onClose }) {
+export default function CetakPerjanjian({ owner, nomorUrut = 1, onClose }) {
   const [tanggalCetak] = useState(() => new Date());
 
   // Hilangkan isi halaman di belakang supaya yang tercetak hanya surat.
@@ -56,7 +56,7 @@ export default function CetakPerjanjian({ owner, onClose }) {
       <div className="flex-1 overflow-auto py-6 px-2 md:px-6">
         <div className="mx-auto shadow-2xl max-w-[210mm] w-full">
           <div className="cetak-surat">
-            <SuratPerjanjian owner={owner} tanggalCetak={tanggalCetak} />
+            <SuratPerjanjian owner={owner} tanggalCetak={tanggalCetak} nomorUrut={nomorUrut} />
           </div>
         </div>
       </div>

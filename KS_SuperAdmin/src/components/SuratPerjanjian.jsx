@@ -2,23 +2,53 @@
  * Dokumen "Surat Perjanjian Penggunaan dan Berlangganan Aplikasi CodaSuaka".
  *
  * Struktur mengikuti dokumen acuan resmi: judul, PIHAK PERTAMA / PIHAK KEDUA,
- * 13 pasal (termasuk tabel Paket Berlangganan), blok rangkap + materai + saksi.
+ * 13 pasal (termasuk tabel Paket Berlangganan), blok tanda tangan + materai.
  *
  * Komponen ini murni presentasi: tidak menyimpan state, tidak memanggil API.
- * Data yang tidak ada di sistem dikosongkan dengan garis titik-titik (Isian)
- * supaya dicetak tangan, bukan dikarang.
+ * Identitas PIHAK PERTAMA, rekening, dan masa berlangganan mengikuti template
+ * resmi; data PIHAK KEDUA diisi dari data owner, dan yang tidak ada di sistem
+ * dikosongkan dengan garis titik-titik (Isian) supaya dicetak tangan, bukan dikarang.
  */
 
-// Identitas PIHAK PERTAMA fiks sesuai ketentuan pemilik produk.
+// Identitas PIHAK PERTAMA fiks, sama dengan template resmi
+// (file/Surat-Perjanjian-Penggunaan-dan-Berlangganan-CodaSuaka.docx).
+// Isian ini tidak diubah: nama, jabatan, dan nomor telepon dipakai apa adanya.
 const PIHAK_PERTAMA = {
-  nama: 'CODASUAKA',
-  perwakilan: 'Rahmat Nuril Mustofa',
-  jabatan: 'CEO Kunjang',
-  email: 'kodasuaka@gmail.com',
+  nama: 'RAHMAT NURIL MUSTOFA',
+  jabatan: 'CEO',
+  telepon: '0882009179668',
+  bertindakUntuk: 'Penyedia Aplikasi CodaSuaka',
 };
+
+// Rekening penagihan PIHAK PERTAMA, sama dengan template resmi.
+const PEMBAYARAN = '1710016942966 A.N Rahmat Nuril M (Mandiri)';
+
+// Tempat pembuatan surat: tetap Kediri, tidak diambil dari data owner.
+const TEMPAT_SURAT = 'Kediri';
+
+// Masa Berlangganan sesuai ketentuan: 30 hari sejak tanggal penandatanganan.
+const MASA_BERLANGGANAN_HARI = 30;
 
 const formatRupiah = (angka) =>
   new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(angka || 0);
+
+/**
+ * Nomor surat: <3 huruf awal instansi>-<nomor urut>/KDS/<bulan>/<tahun>,
+ * contoh ABC-001/KDS/09/2026. Angka bulan dan tahun ikut tanggal pencetakan.
+ * Sengaja tidak diekspor: aturan fast-refresh mensyaratkan file komponen
+ * hanya mengekspor komponen.
+ */
+function formatNomorSurat({ namaInstansi, nomorUrut, tanggal }) {
+  const kode = (namaInstansi || '')
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((kata) => kata.replace(/[^A-Za-z0-9]/g, '').charAt(0).toUpperCase())
+    .join('')
+    .slice(0, 3);
+  const urut = String(nomorUrut || 1).padStart(3, '0');
+  const bulan = String(tanggal.getMonth() + 1).padStart(2, '0');
+  return `${kode || 'XXX'}-${urut}/KDS/${bulan}/${tanggal.getFullYear()}`;
+}
 
 /** Garis titik-titik untuk data yang belum ada di sistem / diisi tangan. */
 function Isian({ lebar = 'w-40' }) {
@@ -29,10 +59,12 @@ function Isian({ lebar = 'w-40' }) {
   );
 }
 
+// Penomoran butir: penanda "1." ikut di dalam string nomor supaya spasi
+// sebelum titik tidak pernah muncul di hasil cetak.
 function Paragraf({ children, nomor }) {
   return (
     <p className="text-[12px] leading-[1.75] text-slate-900 text-justify mb-2">
-      {nomor ? <span className="font-semibold">{nomor}. </span> : null}
+      {nomor ? <span className="font-semibold">{nomor}</span> : null}
       {children}
     </p>
   );
@@ -61,15 +93,23 @@ function BarisTabel({ label, lebarLabel = 'w-40', children }) {
   );
 }
 
-export default function SuratPerjanjian({ owner, tanggalCetak = new Date() }) {
+export default function SuratPerjanjian({ owner, tanggalCetak = new Date(), nomorUrut = 1 }) {
   if (!owner) return null;
 
-  // Tanggal CETAK ikut terisi di surat; tanggal TEMPAH/JANGKA WAKTU tetap dari data.
+  // Tanggal cetak satu-satunya tanggal yang dipakai di surat: mengisi kalimat
+  // pembuka dan angka bulan/tahun pada nomor surat. Pasal 4 tidak lagi memakai
+  // tanggal karena Masa Berlangganannya tetap 30 hari sejak penandatanganan.
   const namaHari = tanggalCetak.toLocaleDateString('id-ID', { weekday: 'long' });
   const namaBulan = tanggalCetak.toLocaleDateString('id-ID', { month: 'long' });
 
   const profil = owner.profil_karyawan || {};
   const instansi = owner.instansi || {};
+
+  const nomorSurat = formatNomorSurat({
+    namaInstansi: instansi.nama_instansi,
+    nomorUrut,
+    tanggal: tanggalCetak,
+  });
 
   // Paket milik owner, digabung per-field dari tiga sumber:
   //   1) owner.paket_aktif   -> paket dari invoice (transaksi_paket)
@@ -91,21 +131,17 @@ export default function SuratPerjanjian({ owner, tanggalCetak = new Date() }) {
           .map((p) => p.max_karyawan_per_outlet)
           .find((v) => v != null) ?? null,
         fitur: sumberPaket.map((p) => p.fitur).find((v) => v != null) ?? null,
-        tanggal_mulai: sumberPaket.map((p) => p.tanggal_mulai).find(Boolean) || null,
-        tanggal_berakhir: sumberPaket.map((p) => p.tanggal_berakhir).find(Boolean) || null,
         status: sumberPaket.map((p) => p.status).find(Boolean) || null,
       }
     : null;
 
   const namaPihakKedua = profil.nama_lengkap || owner.name || '';
-  const alamat = profil.alamat || null;
   const kontak = profil.kontak || null;
   const npwp = profil.npwp || null;
 
-  // Masa Berlangganan SENGAJA dikosongkan: tanggal transaksi paket sering
-  // tidak sinkron dengan kontrak di lapangan, jadi biarkan diisi
-  // tangan dari tanggal di Pasal 3 (Isian) daripada menampilkan angka yang
-  // bisa salah. Durasi paket (durasi_hari) tetap tampil di Pasal 3.
+  // Masa Berlangganan tidak lagi memakai tanggal transaksi: sekarang tetap
+  // 30 hari sejak penandatanganan (lihat MASA_BERLANGGANAN_HARI di Pasal 4).
+  // Durasi paket (durasi_hari) tetap tampil di Pasal 3 sebagaiinformasi paket.
 
   // Fitur paket disimpan backend sebagai JSON string; terima array, JSON, atau teks.
   const fitur = Array.isArray(paket?.fitur)
@@ -125,7 +161,13 @@ export default function SuratPerjanjian({ owner, tanggalCetak = new Date() }) {
   return (
     <div
       className="bg-white text-slate-900 mx-auto"
-      style={{ fontFamily: "'Times New Roman', Georgia, serif", width: '210mm', padding: '18mm 20mm' }}
+      style={{
+        // Times New Roman dengan fallback metric-compatible (Liberation Serif)
+        // supaya hasil cetak di mesin tanpa Times tetap proporsional.
+        fontFamily: "'Times New Roman', 'Liberation Serif', Times, serif",
+        width: '210mm',
+        padding: '18mm 20mm 20mm',
+      }}
     >
       {/* JUDUL */}
       <header className="text-center mb-5">
@@ -135,42 +177,36 @@ export default function SuratPerjanjian({ owner, tanggalCetak = new Date() }) {
         </h2>
       </header>
 
-      {/* NOMOR */}
-      <div className="text-[12px] leading-[1.8] mb-4">
-        <p>
-          No.: <Isian lebar="w-56" />
-        </p>
-      </div>
-
-      {/* PEMBUKA */}
-      <p className="text-[12px] leading-[1.75] text-justify mb-4">
-        Pada hari ini, {namaHari}, tanggal {tanggalCetak.getDate()}, bulan {namaBulan}, tahun{' '}
-        {tanggalCetak.getFullYear()}, bertempat di <Isian lebar="w-48" />, kami yang bertanda tangan di bawah ini:
+      {/* NOMOR — pola: <kode instansi>-<urut>/KDS/<bln>/<thn> */}
+      <p className="text-[12px] mb-4">
+        No.: <b>{nomorSurat}</b>
       </p>
 
-      {/* PIHAK PERTAMA */}
+      {/* PEMBUKA — tempat surat tetap Kediri, tanggal dari tanggal pencetakan */}
+      <p className="text-[12px] leading-[1.75] text-justify mb-4">
+        Pada hari ini, {namaHari}, tanggal {tanggalCetak.getDate()}, bulan {namaBulan}, tahun{' '}
+        {tanggalCetak.getFullYear()},bertempat di {TEMPAT_SURAT}, kami yang bertanda tangan di bawah ini:
+      </p>
+
+      {/* PIHAK PERTAMA — isi tetap sesuai template; baris Alamat dihapus */}
       <table className="w-full mb-4 border-collapse">
         <tbody>
           <BarisTabel label="Nama">{PIHAK_PERTAMA.nama}</BarisTabel>
           <BarisTabel label="Jabatan">{PIHAK_PERTAMA.jabatan}</BarisTabel>
-          <BarisTabel label="Bertindak untuk dan atas nama">Penyedia Aplikasi CodaSuaka</BarisTabel>
-          <BarisTabel label="Alamat">
-            <Isian lebar="w-64" />
-          </BarisTabel>
-          <BarisTabel label="Nomor Telepon/Email">{PIHAK_PERTAMA.email}</BarisTabel>
+          <BarisTabel label="Bertindak untuk dan atas nama">{PIHAK_PERTAMA.bertindakUntuk}</BarisTabel>
+          <BarisTabel label="Nomor Telepon/Email">{PIHAK_PERTAMA.telepon}</BarisTabel>
         </tbody>
       </table>
       <p className="text-[12px] leading-[1.75] text-justify mb-4">
         Selanjutnya disebut sebagai <b>&ldquo;PIHAK PERTAMA&rdquo;</b> atau <b>&ldquo;Penyedia&rdquo;</b>.
       </p>
 
-      {/* PIHAK KEDUA */}
+      {/* PIHAK KEDUA — baris Alamat Instansi dihapus, sesuai template */}
       <table className="w-full mb-4 border-collapse">
         <tbody>
           <BarisTabel label="Nama">{namaPihakKedua || <Isian lebar="w-56" />}</BarisTabel>
           <BarisTabel label="Jabatan">Pemilik / Penanggung Jawab</BarisTabel>
           <BarisTabel label="Nama Instansi/Perusahaan">{instansi.nama_instansi || <Isian lebar="w-56" />}</BarisTabel>
-          <BarisTabel label="Alamat Instansi">{alamat || <Isian lebar="w-64" />}</BarisTabel>
           <BarisTabel label="NPWP (jika ada)">{npwp || <Isian lebar="w-40" />}</BarisTabel>
           <BarisTabel label="Nomor Telepon/Email">
             {kontak ? `${kontak} / ${owner.email}` : <Isian lebar="w-56" />}
@@ -228,7 +264,7 @@ export default function SuratPerjanjian({ owner, tanggalCetak = new Date() }) {
         <Paragraf>
           PIHAK KEDUA memilih Paket Berlangganan dengan rincian sebagai berikut:
         </Paragraf>
-        <table className="w-full border-collapse mb-2 text-[11px]">
+        <table className="w-full border-collapse mb-2 text-[11px] pasal-tabel">
           <thead>
             <tr>
               <th className="border border-slate-500 py-1 px-1.5 text-left font-semibold">Nama Paket</th>
@@ -270,11 +306,11 @@ export default function SuratPerjanjian({ owner, tanggalCetak = new Date() }) {
         </Paragraf>
       </Pasal>
 
-      {/* PASAL 4 */}
+      {/* PASAL 4 — masa berlangganan tetap 30 hari, tanpa isian tanggal */}
       <Pasal nomor={4} judul="JANGKA WAKTU">
         <Paragraf>
-          Masa Berlangganan berlaku sejak tanggal <Isian lebar="w-24" /> sampai dengan tanggal <Isian lebar="w-24" />
-          , sesuai dengan durasi Paket Berlangganan yang dipilih sebagaimana diatur dalam Pasal 3.
+          Masa Berlangganan berlaku selama {MASA_BERLANGGANAN_HARI} (tiga puluh) hari sejak tanggal
+          penandatanganan Perjanjian ini, atas Paket Berlangganan yang dipilih sebagaimana diatur dalam Pasal 3.
         </Paragraf>
         <Paragraf>
           Perjanjian ini dapat diperpanjang untuk periode berikutnya berdasarkan persetujuan tertulis (termasuk melalui
@@ -346,11 +382,10 @@ export default function SuratPerjanjian({ owner, tanggalCetak = new Date() }) {
         </Paragraf>
       </Pasal>
 
-      {/* PASAL 7 */}
+      {/* PASAL 7 — rekening penagihan tetap sesuai template */}
       <Pasal nomor={7} judul="TATA CARA PEMBAYARAN">
         <Paragraf>
-          Pembayaran dilakukan melalui: <Isian lebar="w-72" /> (contoh: transfer bank/virtual account/kartu
-          debit/kredit/e-wallet), ke rekening/akun yang ditentukan oleh PIHAK PERTAMA.
+          Pembayaran dilakukan melalui {PEMBAYARAN}, ke rekening/akun yang ditentukan oleh PIHAK PERTAMA.
         </Paragraf>
         <Paragraf>
           Keterlambatan pembayaran dapat menyebabkan status Paket Berlangganan berubah menjadi <b>&ldquo;kedaluwarsa&rdquo;</b>{' '}
@@ -445,11 +480,11 @@ export default function SuratPerjanjian({ owner, tanggalCetak = new Date() }) {
         paksaan dari pihak mana pun, untuk dilaksanakan dengan sebaik-baiknya.
       </p>
 
-      <div className="grid grid-cols-2 gap-8 text-center text-[12px]">
+      <div className="grid grid-cols-2 gap-8 text-center text-[12px] ttd-blok">
         <div>
           <p className="font-bold mb-1">PIHAK PERTAMA</p>
           <p className="mb-10">(Materai) <Isian lebar="w-28" /></p>
-          <p className="font-semibold underline">{PIHAK_PERTAMA.perwakilan}</p>
+          <p className="font-semibold underline">{PIHAK_PERTAMA.nama}</p>
           <p className="text-[11px] text-slate-600">{PIHAK_PERTAMA.jabatan}</p>
         </div>
         <div>
@@ -457,21 +492,6 @@ export default function SuratPerjanjian({ owner, tanggalCetak = new Date() }) {
           <p className="mb-10">(Materai) <Isian lebar="w-28" /></p>
           <p className="font-semibold underline">{namaPihakKedua || <Isian lebar="w-40" />}</p>
           <p className="text-[11px] text-slate-600">Pemilik / Penanggung Jawab</p>
-        </div>
-      </div>
-
-      {/* SAKSI */}
-      <p className="text-[12px] font-semibold mt-8 mb-1">Saksi-saksi (opsional):</p>
-      <div className="grid grid-cols-2 gap-8 text-[12px]">
-        <div>
-          <p className="mb-10">
-            1. <Isian lebar="w-40" /> Tanda tangan: <Isian lebar="w-24" />
-          </p>
-        </div>
-        <div>
-          <p className="mb-10">
-            2. <Isian lebar="w-40" /> Tanda tangan: <Isian lebar="w-24" />
-          </p>
         </div>
       </div>
     </div>

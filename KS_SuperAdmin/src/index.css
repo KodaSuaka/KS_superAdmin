@@ -5,12 +5,14 @@
    Saat window.print() dipanggil, hanya blok .cetak-surat yang tampil;
    seluruh isi halaman lain disembunyikan supaya yang keluar hanya surat.
    ========================================== */
-@media print {
-  @page {
-    size: A4 portrait;
-    margin: 0;
-  }
+@page {
+  size: A4 portrait;
+  /* Margin halaman dikelola .cetak-surat (padding dalam), supaya isi
+     surat tidak pernah menempel tepi kertas pada printer apa pun. */
+  margin: 0;
+}
 
+@media print {
   html,
   body {
     background: #fff !important;
@@ -32,18 +34,29 @@
     margin: 0;
     padding: 0;
     box-shadow: none !important;
+    /* Jarak antarbaris seragam di semua pasal supaya tampilan konsisten. */
+    line-height: 1.75;
   }
 
   /* Cegah paragraf / pasal jadi yatim di antar halaman. */
   .cetak-surat p,
   .cetak-surat section,
-  .cetak-surat header {
+  .cetak-surat header,
+  .cetak-surat table {
     break-inside: avoid;
     page-break-inside: avoid;
   }
 
+  .cetak-surat h1,
+  .cetak-surat h2,
   .cetak-surat h3 {
     break-after: avoid;
     page-break-after: avoid;
+  }
+
+  /* Blok tanda tangan dan tabel paket tidak boleh terpisah antar halaman. */
+  .cetak-surat .ttd-blok,
+  .cetak-surat .pasal-tabel {
+    break-inside: avoid;
   }
 }

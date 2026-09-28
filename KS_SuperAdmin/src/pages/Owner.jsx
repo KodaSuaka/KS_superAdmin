@@ -11,6 +11,9 @@ export default function Owner() {
   const [isEditMode, setIsEditMode] = useState(false);
   // Owner yang sedang dipratinjau untuk dicetak suratnya (null = jendela ditutup)
   const [ownerCetak, setOwnerCetak] = useState(null);
+  // Nomor urut surat = urutan owner pada tabel. Dihitung ulang tiap muat data
+  // supaya nomor surat ikut otomatis saat owner baru ditambah.
+  const [nomorUrutSurat, setNomorUrutSurat] = useState({});
   const [formData, setFormData] = useState({
     id: null,
     name: '',
@@ -112,6 +115,10 @@ export default function Owner() {
         })
       );
       setDaftarInstansiOption(dataInstansi);
+      // Nomor urut surat mengikuti urutan owner pada tabel (dimulai 1).
+      setNomorUrutSurat(
+        Object.fromEntries(owners.map((owner, index) => [owner.id, index + 1]))
+      );
     } catch (error) {
       console.error('Gagal memuat data owner:', error);
     } finally {
@@ -382,7 +389,11 @@ export default function Owner() {
 
       {/* JENDELA CETAK SURAT PERJANJIAN */}
       {ownerCetak && (
-        <CetakPerjanjian owner={ownerCetak} onClose={() => setOwnerCetak(null)} />
+        <CetakPerjanjian
+          owner={ownerCetak}
+          nomorUrut={nomorUrutSurat[ownerCetak.id] || 1}
+          onClose={() => setOwnerCetak(null)}
+        />
       )}
 
     </div>
