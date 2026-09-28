@@ -17,6 +17,7 @@ const PIHAK_PERTAMA = {
   nama: 'RAHMAT NURIL MUSTOFA',
   jabatan: 'CEO',
   telepon: '0882009179668',
+  email: 'kodasuaka@gmail.com',
   bertindakUntuk: 'Penyedia Aplikasi CodaSuaka',
 };
 
@@ -90,6 +91,57 @@ function BarisTabel({ label, lebarLabel = 'w-40', children }) {
       <td className="py-0.5 pr-2 align-top text-[12px] text-center">:</td>
       <td className="py-0.5 align-top text-[12px] text-slate-900">{children}</td>
     </tr>
+  );
+}
+
+/**
+ * Kotak centang untuk tanda persetujuan.
+ *
+ * Digambar dengan SVG, bukan karakter "☑": font serif yang tersedia di
+ * web/sistem tidak punya glyph itu, dan memaksakan font sans untuk satu
+ * karakter akan merusak keseragaman font surat. CSS menjaga garis centang
+ * tetap proporsional saat dicetak.
+ */
+function KotakCeklis({ size = 9 }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 12 12"
+      className="shrink-0"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <rect
+        x="0.75"
+        y="0.75"
+        width="10.5"
+        height="10.5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.2"
+      />
+      <path
+        d="M2.8 6.2 L5.1 8.6 L9.2 3.6"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+/** Satu baris persetujuan: [kotak centang] keterangan. */
+function BarisPersetujuan({ children }) {
+  return (
+    <div className="flex items-start gap-2 text-[11px] leading-[1.5] text-slate-800">
+      <span className="mt-[1px] inline-block align-middle">
+        <KotakCeklis />
+      </span>
+      <span className="text-justify">{children}</span>
+    </div>
   );
 }
 
@@ -177,8 +229,8 @@ export default function SuratPerjanjian({ owner, tanggalCetak = new Date(), nomo
         </h2>
       </header>
 
-      {/* NOMOR — pola: <kode instansi>-<urut>/KDS/<bln>/<thn> */}
-      <p className="text-[12px] mb-4">
+      {/* NOMOR — pola: <kode instansi>-<urut>/KDS/<bln>/<thn>, rata tengah */}
+      <p className="text-[12px] mb-4 text-center">
         No.: <b>{nomorSurat}</b>
       </p>
 
@@ -194,7 +246,9 @@ export default function SuratPerjanjian({ owner, tanggalCetak = new Date(), nomo
           <BarisTabel label="Nama">{PIHAK_PERTAMA.nama}</BarisTabel>
           <BarisTabel label="Jabatan">{PIHAK_PERTAMA.jabatan}</BarisTabel>
           <BarisTabel label="Bertindak untuk dan atas nama">{PIHAK_PERTAMA.bertindakUntuk}</BarisTabel>
-          <BarisTabel label="Nomor Telepon/Email">{PIHAK_PERTAMA.telepon}</BarisTabel>
+          <BarisTabel label="Nomor Telepon/Email">
+            {PIHAK_PERTAMA.telepon} / {PIHAK_PERTAMA.email}
+          </BarisTabel>
         </tbody>
       </table>
       <p className="text-[12px] leading-[1.75] text-justify mb-4">
@@ -479,6 +533,18 @@ export default function SuratPerjanjian({ owner, tanggalCetak = new Date(), nomo
         Demikian Perjanjian ini dibuat dan ditandatangani oleh Para Pihak dalam keadaan sehat jasmani dan rohani, tanpa
         paksaan dari pihak mana pun, untuk dilaksanakan dengan sebaik-baiknya.
       </p>
+
+      {/* Persetujuan: kotak centang sudah tercentang, jadi berkas yang
+          diunduh menyatakan keputusan tanpa perlu tanda tangan basah. */}
+      <div className="mt-3 mb-5 space-y-1.5">
+        <BarisPersetujuan>
+          <b>Disetujui secara elektronik oleh PIHAK PERTAMA</b> &mdash; {PIHAK_PERTAMA.nama}, {PIHAK_PERTAMA.jabatan} CodaSuaka ({PIHAK_PERTAMA.email}), menyetujui atas nama pihak pertama pada tanggal {tanggalCetak.getDate()} {namaBulan} {tanggalCetak.getFullYear()}.
+        </BarisPersetujuan>
+        <BarisPersetujuan>
+          <b>Disetujui oleh PIHAK KEDUA</b> &mdash; {namaPihakKedua || <Isian lebar="w-32" />}, Pemilik / Penanggung Jawab {instansi.nama_instansi || <Isian lebar="w-32" />}
+          {owner.email ? ` (${owner.email})` : ''}, menyetujui pada tanggal {tanggalCetak.getDate()} {namaBulan} {tanggalCetak.getFullYear()}.
+        </BarisPersetujuan>
+      </div>
 
       <div className="grid grid-cols-2 gap-8 text-center text-[12px] ttd-blok">
         <div>
