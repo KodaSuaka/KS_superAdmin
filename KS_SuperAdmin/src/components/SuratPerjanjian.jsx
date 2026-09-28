@@ -138,6 +138,12 @@ export default function SuratPerjanjian({ owner, tanggalCetak = new Date(), nomo
 
   const namaPihakKedua = profil.nama_lengkap || owner.name || '';
   const kontak = profil.kontak || null;
+  // Surel pemilik ada di tabel users (karyawans tidak punya kolom email).
+  const email = owner.email || null;
+  // Gabung telepon dan surel per bagian yang ada: dulu baris ini bergantung
+  // pada kontak saja, jadi owner tanpa nomor telepon menampilkan baris kosong
+  // padahal surelnya ada.
+  const kontakEmail = [kontak, email].filter(Boolean).join(' / ');
   const npwp = profil.npwp || null;
 
   // Masa Berlangganan tidak lagi memakai tanggal transaksi: sekarang tetap
@@ -212,7 +218,7 @@ export default function SuratPerjanjian({ owner, tanggalCetak = new Date(), nomo
           <BarisTabel label="Nama Instansi/Perusahaan">{instansi.nama_instansi || <Isian lebar="w-56" />}</BarisTabel>
           <BarisTabel label="NPWP (jika ada)">{npwp || <Isian lebar="w-40" />}</BarisTabel>
           <BarisTabel label="Nomor Telepon/Email">
-            {kontak ? `${kontak} / ${owner.email}` : <Isian lebar="w-56" />}
+            {kontakEmail ? kontakEmail : <Isian lebar="w-56" />}
           </BarisTabel>
         </tbody>
       </table>
@@ -505,7 +511,7 @@ export default function SuratPerjanjian({ owner, tanggalCetak = new Date(), nomo
           <p className="text-[11px] text-slate-600">
             Instansi: {instansi.nama_instansi || <Isian lebar="w-32" />}
           </p>
-          {owner.email ? <p className="text-[11px] text-slate-600">({owner.email})</p> : null}
+          {email ? <p className="text-[11px] text-slate-600">({email})</p> : null}
         </div>
       </div>
     </div>
