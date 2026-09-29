@@ -1,39 +1,91 @@
 @import "tailwindcss";
 
 /* ==========================================
+   KERTAS SURAT (pratinjau di layar)
+   Ukuran dan padding kertas diambil dari sini, bukan dari inline style,
+   supaya aturan @media print bisa menimpanya tanpa !important.
+   ========================================== */
+.surat-kertas {
+  font-family: 'Times New Roman', 'Liberation Serif', Times, serif;
+  width: 210mm;
+  padding: 18mm 20mm 20mm;
+}
+
+/* ==========================================
    CETAK SURAT PERJANJIAN
-   Saat window.print() dipanggil, hanya blok .cetak-surat yang tampil;
-   seluruh isi halaman lain disembunyikan supaya yang keluar hanya surat.
+   Saat window.print() dipanggil, hanya jendela .cetak-jendela yang ikut
+   dicetak: seluruh isi aplikasi disembunyikan, lalu surat mengalir normal
+   dan dipecah browser menjadi beberapa halaman A4.
+
+   Dua hal yang wajib dijaga di sini:
+   1. .cetak-surat TIDAK boleh position:absolute/fixed. Blok yang keluar dari
+      aliran normal tidak pernah dipaginasi — isinya dipotong tepat di batas
+      kertas dan bagian bawah hilang.
+   2. Margin antarhalaman ditulis di @page, bukan padding .surat-kertas.
+      Padding blok hanya dihitung di halaman pertama; isi yang continued ke
+      halaman kedua akan naik dan menempel ke tepi atas kertas.
    ========================================== */
 @page {
   size: A4 portrait;
-  /* Margin halaman dikelola .cetak-surat (padding dalam), supaya isi
-     surat tidak pernah menempel tepi kertas pada printer apa pun. */
-  margin: 0;
+  /* Samakan dengan padding .surat-kertas supaya hasil cetak identik pratinjau. */
+  margin: 18mm 20mm 20mm;
 }
 
 @media print {
   html,
   body {
     background: #fff !important;
+    /* Scroll container ikut memotong isi saat cetak; kembalikan ke normal. */
+    height: auto !important;
+    overflow: visible !important;
   }
 
-  body * {
-    visibility: hidden !important;
+  /* Jendela cetak di-render lewat portal ke body, jadi cukup matikan
+     semua anak body lain (container #root aplikasi) lalu cetak jendela itu. */
+  body > *:not(.cetak-jendela) {
+    display: none !important;
   }
 
-  .cetak-surat,
-  .cetak-surat * {
-    visibility: visible !important;
+  .cetak-jendela {
+    position: static !important;
+    inset: auto !important;
+    display: block !important;
+    background: none !important;
+    backdrop-filter: none !important;
+  }
+
+  /* Toolbar tombol cetak tidak ikut ke kertas. */
+  .cetak-toolbar {
+    display: none !important;
+  }
+
+  /* Wadah pratinjau yang menggulir dilepas supaya isinya mengalir ke kertas. */
+  .cetak-pscroll {
+    flex: none !important;
+    overflow: visible !important;
+    padding: 0 !important;
+  }
+
+  .cetak-kertas,
+  .cetak-surat {
+    max-width: none !important;
+    box-shadow: none !important;
   }
 
   .cetak-surat {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    margin: 0;
-    padding: 0;
-    box-shadow: none !important;
+    position: static !important;
+    inset: auto !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Ukuran halaman dikendalikan @page margin, bukan padding elemen. */
+  .surat-kertas {
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
     /* Jarak antarbaris seragam di semua pasal supaya tampilan konsisten. */
     line-height: 1.75;
   }
@@ -45,6 +97,8 @@
   .cetak-surat table {
     break-inside: avoid;
     page-break-inside: avoid;
+    orphans: 3;
+    widows: 3;
   }
 
   .cetak-surat h1,

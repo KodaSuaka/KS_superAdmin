@@ -166,16 +166,11 @@ export default function SuratPerjanjian({ owner, tanggalCetak = new Date(), nomo
       })();
 
   return (
-    <div
-      className="bg-white text-slate-900 mx-auto"
-      style={{
-        // Times New Roman dengan fallback metric-compatible (Liberation Serif)
-        // supaya hasil cetak di mesin tanpa Times tetap proporsional.
-        fontFamily: "'Times New Roman', 'Liberation Serif', Times, serif",
-        width: '210mm',
-        padding: '18mm 20mm 20mm',
-      }}
-    >
+    // Ukuran/padding kertas dan font dikelola kelas .surat-kertas di
+    // index.css, bukan inline style: aturan @media print harus bisa
+    // menggantinya (padding blok hanya berlaku di halaman pertama, sedangkan
+    // jarak antarhalaman dikendalikan @page margin).
+    <div className="surat-kertas bg-white text-slate-900 mx-auto">
       {/* JUDUL */}
       <header className="text-center mb-5">
         <h1 className="text-[15px] font-bold uppercase tracking-wide">Surat Perjanjian</h1>
